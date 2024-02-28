@@ -94,6 +94,10 @@ pub fn xor_bytes(a: &[u8], b: &[u8]) -> Result<Vec<u8>, XorError> {
         .collect())
 }
 
+pub fn realness(b: &[u8]) -> f64 {
+    (b.iter().filter(|x| x.is_ascii_alphabetic()).count() as f64) / (b.len() as f64)
+}
+
 fn main() {
     println!("Main doesn't do anything yet :)");
 }
@@ -116,7 +120,7 @@ fn hex_test() {
 }
 
 #[test]
-fn to_base64_test() {
+fn base64_test() {
     assert_eq!(
         to_base64("Many hands make light work.".as_bytes()),
         "TWFueSBoYW5kcyBtYWtlIGxpZ2h0IHdvcmsu".as_bytes()
@@ -140,4 +144,27 @@ fn challenge_2_set_1() {
     let output = "746865206b696420646f6e277420706c6179".as_bytes();
 
     assert_eq!(to_hex(&xor_bytes(&input1, &input2).unwrap()), output);
+}
+
+#[test]
+fn challenge_3_set_1() {
+    let input =
+        from_hex("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736".as_bytes())
+            .unwrap();
+
+    let mut res = (0u8..=255)
+        .into_iter()
+        .map(|b| {
+            let key = vec![b; input.len()];
+            let output = xor_bytes(&input, &key).unwrap();
+            (
+                realness(&output),
+                std::str::from_utf8(&output).map(|s| s.to_owned()),
+            )
+        })
+        .collect::<Vec<_>>();
+    res.sort_by(|(a, _), (b, _)| b.partial_cmp(a).unwrap());
+
+    println!("{:?}", res[0].1.as_ref().unwrap());
+    //panic!(); // It works!! TODO need to figure out an interface for when the answer is unknown
 }
