@@ -8,6 +8,11 @@ pub enum HexDecodeError {
     InvalidByte(u8),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum XorError {
+    LengthMismatch(usize, usize),
+}
+
 pub fn from_hex(bytes: &[u8]) -> Result<Vec<u8>, HexDecodeError> {
     let mut cur_byte = 0;
     let mut output = Vec::new();
@@ -31,6 +36,25 @@ pub fn from_hex(bytes: &[u8]) -> Result<Vec<u8>, HexDecodeError> {
     }
 
     Ok(output)
+}
+
+fn lower_nibble(b: u8) -> u8 {
+    let b = b & 0xF;
+    match b {
+        0..=9 => b'0' + b,
+        10..=15 => b'a' - 10 + b,
+        _ => unreachable!(),
+    }
+}
+
+// UQCSQUAD{Ar3_y0u_P4ying_Att3ntion?_xxxw24}
+// Yes I was!
+
+pub fn to_hex(bytes: &[u8]) -> Vec<u8> {
+    bytes
+        .into_iter()
+        .flat_map(|b| [lower_nibble(b >> 4), lower_nibble(b & 0xF)])
+        .collect()
 }
 
 pub fn to_base64(bytes: &[u8]) -> Vec<u8> {
@@ -60,12 +84,22 @@ pub fn to_base64(bytes: &[u8]) -> Vec<u8> {
         .collect()
 }
 
+pub fn xor_bytes(a: &[u8], b: &[u8]) -> Result<Vec<u8>, XorError> {
+    if a.len() != b.len() {
+        return Err(XorError::LengthMismatch(a.len(), b.len()));
+    }
+    Ok(a.into_iter()
+        .zip(b.into_iter())
+        .map(|(a, b)| a ^ b)
+        .collect())
+}
+
 fn main() {
     println!("Main doesn't do anything yet :)");
 }
 
 #[test]
-fn from_hex_test() {
+fn hex_test() {
     assert_eq!(from_hex("414141".as_bytes()), Ok(vec![b'A', b'A', b'A']));
     assert_eq!(from_hex("4F".as_bytes()), Ok(vec![b'O']));
     assert_eq!(from_hex("4f".as_bytes()), Ok(vec![b'O']));
@@ -73,6 +107,12 @@ fn from_hex_test() {
         from_hex("abcdefg".as_bytes()),
         Err(HexDecodeError::InvalidByte(b'g'))
     );
+    assert_eq!(
+        &to_hex(&from_hex("414141".as_bytes()).unwrap()),
+        "414141".as_bytes()
+    );
+    let a = "1c0111001f010100061a024b53535009181c".as_bytes();
+    assert_eq!(to_hex(&from_hex(a).unwrap()), a);
 }
 
 #[test]
@@ -91,4 +131,13 @@ fn challenge_1_set_1() {
         &to_base64(&from_hex(input.as_bytes()).unwrap()),
         output.as_bytes()
     );
+}
+
+#[test]
+fn challenge_2_set_1() {
+    let input1 = from_hex("1c0111001f010100061a024b53535009181c".as_bytes()).unwrap();
+    let input2 = from_hex("686974207468652062756c6c277320657965".as_bytes()).unwrap();
+    let output = "746865206b696420646f6e277420706c6179".as_bytes();
+
+    assert_eq!(to_hex(&xor_bytes(&input1, &input2).unwrap()), output);
 }
